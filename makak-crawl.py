@@ -14,16 +14,16 @@ logging.basicConfig(
 )
 
 class MakakCrawler:
-    def __init__(self, 
+    def __init__(self,
                  base_dir: str = "/images/",
-                 makak_script: str = "/home/mates/test/makak.py",
+                 makak_script: str = "/home/mates/makak-reloaded/makak-reloaded.py",
                  max_workers: Optional[int] = None):
         self.base_dir = base_dir
         self.makak_script = makak_script
         self.triggered_files: Set[str] = set()
         self.max_workers = max_workers or cpu_count()
         self.pool = Pool(processes=self.max_workers)
-        
+
     def get_latest_date_dir(self) -> Optional[str]:
         """Find the most recent date directory."""
         pattern = os.path.join(self.base_dir, "*", "20??????")
@@ -32,8 +32,10 @@ class MakakCrawler:
 
     def process_file(self, fits_file: str) -> None:
         """Process a single FITS file using makak.py"""
+        logging.info(f"Processing new file: {newest_file}")
         try:
             subprocess.run([self.makak_script, fits_file])
+            logging.info(f"Finished processing {fits_file}: {e}")
         except Exception as e:
             logging.error(f"Error processing {fits_file}: {e}")
 
@@ -41,7 +43,7 @@ class MakakCrawler:
         """Main crawling loop."""
         logging.info(f"Starting crawl with {self.max_workers} workers")
         current_dir = None
-        
+
         while True:
             try:
                 date_dir = self.get_latest_date_dir()
@@ -67,7 +69,7 @@ class MakakCrawler:
 
                 newest_file = all_files[-1]
                 if newest_file not in self.triggered_files:
-                    logging.info(f"Processing new file: {newest_file}")
+                    logging.info(f"Found a new file: {newest_file}")
                     self.pool.apply_async(self.process_file, (newest_file,))
                     self.triggered_files.add(newest_file)
 
