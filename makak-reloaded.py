@@ -17,24 +17,27 @@ from smart_dark import smart_dark  # Assuming this is your existing module
 import fcntl  # for file locking
 
 def append_to_daily_file(datestr, line, pid=os.getpid()):
-    output_file = f"nght/mr{datestr}.dat"
+    output_file = f"/home/mates/makak-reloaded/nght/mr{datestr}.dat"
     try:
-        # Clean up the filename in the line
-        parts = line.split()
-        if parts:
-            # Extract just the base filename without path and extra suffixes
-            filename = os.path.basename(parts[0])  # Remove path
-            filename = filename.replace('-RAdcn.fits', '')  # Remove suffix
-            # Reconstruct the line with cleaned filename
-            cleaned_line = filename + ' ' + ' '.join(parts[1:]) + '\n'
-
-            with open(output_file, 'a') as out:
-                fcntl.flock(out.fileno(), fcntl.LOCK_EX)
-                try:
-                    out.write(cleaned_line)
-                    out.flush()
-                finally:
-                    fcntl.flock(out.fileno(), fcntl.LOCK_UN)
+        # Open file for locking first
+        out = open(output_file, 'a')
+        fcntl.flock(out.fileno(), fcntl.LOCK_EX)
+        try:
+            # Clean up the filename in the line
+            parts = line.split()
+            if parts:
+                # Extract just the base filename without path and extra suffixes
+                filename = os.path.basename(parts[0])  # Remove path
+                filename = filename.replace('-RAdcn.fits', '')  # Remove suffix
+                # Reconstruct the line with cleaned filename
+                cleaned_line = filename + ' ' + ' '.join(parts[1:]) + '\n'
+                # Now we can safely write
+                out.write(cleaned_line)
+                out.flush()
+        finally:
+            # Always unlock and close
+            fcntl.flock(out.fileno(), fcntl.LOCK_UN)
+            out.close()
     except Exception as e:
         logging.error(f"Process {pid}: Error writing to {output_file}: {e}")
 
@@ -197,10 +200,9 @@ def process_light_frame(img_fits, fits_path, temp_dir, model_path):
 #        os.rename(output_filename, final_plot_path)
 
     # Process dophot output
-    with open("dophot.dat") as f, open(f"/home/mates/makak-reloaded/nght/mr{datestr}.dat", 'a') as out:
+    with open("dophot.dat") as f:
         lines = f.readlines()
         if lines:  # if file is not empty
-#           out.write(lines[-1]) # write the last line, but with locking:
             append_to_daily_file(datestr, lines[-1])
 
     # Move ECSV file to final location
