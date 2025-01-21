@@ -46,6 +46,16 @@ set grid
 h=3600.
 d=86400.0
 
+# dark noise of the camera (in ADU, fitted on darks):
+g=2.00 # kinda true for g1-2000
+A=460.0
+B=1.2
+N=60.0
+D(temp) = 1/g*sqrt(g*A*B**temp+N*N*g*g)
+
+# get the CCD intrinsic noise as a function of temperature
+fit D(x) "$dfile" u 3:(\$2<150?\$2:NaN) via A
+
 set xtics # ( "16" -8, "18" -6, "20" -4, "22" -2,  0, 2, 4, 6, 8)
 set xrange [$tmnight/h:$tmdawn/h]
 set ytics nomirror
@@ -54,9 +64,9 @@ set ytics nomirror
 #set y2tics (1,1.8,3,5.6,10,18,30,56,100,180,300,560,1000,1800,3000,5600,10000,18000,30000,56000) nomirror
 set title "$title"
 
-Z=19.1
+Z=19.4
 s=56.9403 # arcsec/pixel
-g=7.8 # camera gain
+#g=7.8 # camera gain
 #n=(int($now/86400.0+0.5))*86400.0
 #print n
 #t(x)=(x-n)/h #+12.0
@@ -68,7 +78,7 @@ set output "makak.png"
 
 dz=0.15
 dl=0.3
-g = 2.5
+#g = 2.5
 
 Nplot=4
 set multiplot
@@ -79,19 +89,7 @@ set yrange [] reverse
 
 unset xlabel
 
-g=2.00 # kinda true for g1-2000
-
-
 set x2tics ( sprintf("%.0f:%02.0f",24+int($tmnight/h),60+($tmnight-(h*int($tmnight/h)))/60) $tmnight/h, sprintf("%.0f:%02.0f",int($tmdawn/h),($tmdawn-(h*int($tmdawn/h)))/60) $tmdawn/h )
-
-# dark noise of the camera (in ADU, fitted on darks):
-A=460
-B=1.2
-N=60
-D(temp) = 1/g*sqrt(g*A*B**temp+N*N*g*g)
-
-# get the CCD intrinsic noise as a function of temperature
-fit D(x) "$dfile" u 3:2 via N,A
 
 # barvy: lt rgb "#dda4a4" lt rgb "#dd3333" lt rgb "#a4dda4" lt rgb "#33dd33" lt rgb "#3333dd" 
 plot "$file" u (t(\$2)):(\$9<dz?\$8+7.5:NaN) pt 7 ps 0.7 lt rgb "#dd3333" t "Zeropoint/1s",\
@@ -100,10 +98,20 @@ plot "$file" u (t(\$2)):(\$9<dz?\$8+7.5:NaN) pt 7 ps 0.7 lt rgb "#dd3333" t "Zer
 
 unset x2tics
 set origin 0,0
-set size 1.0,1.0/Nplot
+set size 2.0/Nplot,1.0/Nplot
 set yrange [] noreverse
 plot "$file" u (t(\$2)):15 pt 7 ps 0.7 lt 1 t "ccdtemp", \\
         "$dfile" u (ts(\$1)):3 pt 7 ps 0.7 lt 2 t "ccdtemp (dark)"
+
+set origin 2.0/Nplot,0
+set size 2.0/Nplot,1.0/Nplot
+set xrange [*:*] noreverse
+set yrange [*:*] noreverse
+set xtics auto
+set ytics auto
+
+plot "$dfile" u 3:(\$2<150?\$2:NaN) pt 7 t "sigma(T)", D(x)
+ 
 
 END
 
